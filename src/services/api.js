@@ -1,4 +1,4 @@
-const API_URL = "https://touchwood2-production-1733.up.railway.app/api";
+const API_URL = "https://touchwood-production-1bed.up.railway.app/api";
 
 
 export const getProducts = async () => {
