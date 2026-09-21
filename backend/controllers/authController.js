@@ -39,7 +39,7 @@ const isValidUserId = (userId) => {
 export const register = async (req, res) => {
   try {
     const name = sanitizeString(req.body.name);
-    const email = sanitizeString(req.body.email).toLowerCase();
+    const email = sanitizeString(req.body.email);
     const password =
       typeof req.body.password === "string"
         ? req.body.password

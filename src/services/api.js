@@ -1,6 +1,5 @@
-const API_URL = "https://touchwood2-production.up.railway.app/api";
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://localhost:5000/api";
+const API_URL = "http://touchwood2-production-1733.up.railway.app/api";
+
 
 export const getProducts = async () => {
   const response = await fetch(`${API_URL}/products`);
