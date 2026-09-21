@@ -19,57 +19,14 @@ app.set("trust proxy", 1);
 
 
 const allowedOrigins = [
-  "http://localhost:3000","http://localhost:5000"
+  "http://localhost:3000","http://localhost:3001"
 
 ];
 
-app.use((req, res, next) => {
-  console.log("========== CORS DEBUG ==========");
-  console.log("Method:", req.method);
-  console.log("URL:", req.originalUrl);
-  console.log("Origin:", req.headers.origin);
-  console.log("Access-Control-Request-Method:",
-    req.headers["access-control-request-method"]
-  );
-  console.log("Access-Control-Request-Headers:",
-    req.headers["access-control-request-headers"]
-  );
-  console.log("================================");
-
-  next();
-});
 
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
 
-      return callback(
-        new Error("Not allowed by CORS")
-      );
-    },
-
-    credentials: true,
-
-    methods: [
-      "GET",
-      "POST",
-      "PUT",
-      "PATCH",
-      "DELETE",
-      "OPTIONS",
-    ],
-
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-    ],
-  })
-);
-
+app.use(cors());
 
 
 app.use(
