@@ -13,8 +13,7 @@ const passwordRegex =
 const nameRegex =
   /^[A-Za-zÀ-ÖØ-öø-ÿ\u0600-\u06FF\s'-]{2,50}$/;
 
-const phoneRegex =
-  /^[0-9+\-\s()]{7,20}$/;
+const phoneRegex = /^\d{11}$/;
 
 const sanitizeString = (value) => {
   if (typeof value !== "string") {
@@ -67,11 +66,7 @@ if (email === password ) {
         message: "Please enter a valid email address",
       });
     }
-    if (!phone.length===11) {
-      return res.status(400).json({
-        message: "Phone Number must be 11 numbers",
-      });
-    }
+   
 
     if (!passwordRegex.test(password)) {
       return res.status(400).json({
@@ -82,7 +77,7 @@ if (email === password ) {
 
     if (!phoneRegex.test(phone)) {
       return res.status(400).json({
-        message: "Please enter a valid phone number",
+        message: "Phone Number must be 11 numbers",
       });
     }
 
