@@ -1,5 +1,4 @@
-// Public browser configuration. Do not hard-code deployment URLs here.
-const API_URL = "https://humorous-integrity-production.up.railway.app/api";
+const API_URL = "https://touchwood2-production.up.railway.app/api";
   process.env.NEXT_PUBLIC_API_URL ||
   "http://localhost:5000/api";
 

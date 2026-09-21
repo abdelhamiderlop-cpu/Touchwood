@@ -51,7 +51,7 @@ export const register = async (req, res) => {
         message: "All fields are required",
       });
     }
-if (email = password ) {
+if (email === password ) {
       return res.status(400).json({
         message: "Email and password match",
       });
