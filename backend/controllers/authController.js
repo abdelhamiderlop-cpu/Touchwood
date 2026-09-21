@@ -67,6 +67,11 @@ if (email === password ) {
         message: "Please enter a valid email address",
       });
     }
+    if (!phone.length===11) {
+      return res.status(400).json({
+        message: "Phone Number must be 11 numbers",
+      });
+    }
 
     if (!passwordRegex.test(password)) {
       return res.status(400).json({

@@ -67,7 +67,8 @@ export default function RegisterPage() {
       switch (message) {
         case "All fields are required":
           return "جميع الحقول مطلوبة";
-
+case "Phone Number must be 11 numbers":
+          return "رقم الهاتف يجب ان يكون مكوننا من 11 رقم";
         case "Please enter a valid name":
           return "يرجى إدخال اسم صحيح";
           case "Email and password match":
