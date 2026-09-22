@@ -36,7 +36,8 @@ export const validateProduct = (
   req,
   res,
   next
-) => {
+) => {  console.log("VALIDATE PRODUCT BODY:", req.body);
+
   const {
     name,
     description,
