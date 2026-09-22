@@ -61,6 +61,10 @@ const validationMessage = (error) => {
     .join(", ");
 };
 
+/* =========================================================
+   DASHBOARD
+========================================================= */
+
 export const getDashboardStats = async (req, res) => {
   try {
     const [
@@ -97,10 +101,7 @@ export const getDashboardStats = async (req, res) => {
       ]),
 
       Order.find()
-        .populate(
-          "user",
-          "name email phone"
-        )
+        .populate("user", "name email phone")
         .sort({ createdAt: -1 })
         .limit(5)
         .lean(),
@@ -175,18 +176,18 @@ export const getDashboardStats = async (req, res) => {
           item._id
         )
       ) {
-        orderStatusStats[item._id] =
-          item.count;
+        orderStatusStats[item._id] = item.count;
       }
     });
 
-    const formattedSalesOverview =
-      salesOverview.map((item) => ({
+    const formattedSalesOverview = salesOverview.map(
+      (item) => ({
         year: item._id.year,
         month: item._id.month,
         sales: item.sales,
         orders: item.orders,
-      }));
+      })
+    );
 
     return res.status(200).json({
       totalSales,
@@ -210,16 +211,16 @@ export const getDashboardStats = async (req, res) => {
   }
 };
 
+/* =========================================================
+   PRODUCTS
+========================================================= */
+
 export const getAdminProducts = async (
   req,
   res
 ) => {
   try {
     const products = await Product.find()
-      .populate(
-        "category",
-        "name slug"
-      )
       .sort({ createdAt: -1 })
       .lean();
 
@@ -253,10 +254,6 @@ export const getAdminProductById = async (
 
   try {
     const product = await Product.findById(id)
-      .populate(
-        "category",
-        "name slug"
-      )
       .lean();
 
     if (!product) {
@@ -290,6 +287,10 @@ export const createAdminProduct = async (
       req.body
     );
 
+    /* =========================
+       NAME
+    ========================= */
+
     if (
       !productData.name ||
       typeof productData.name !== "object"
@@ -299,6 +300,10 @@ export const createAdminProduct = async (
           "Product name in Arabic and English is required",
       });
     }
+
+    /* =========================
+       DESCRIPTION
+    ========================= */
 
     if (
       !productData.description ||
@@ -310,17 +315,39 @@ export const createAdminProduct = async (
       });
     }
 
+    /* =========================
+       SLUG
+    ========================= */
+
     if (!productData.slug) {
       return res.status(400).json({
         message: "Product slug is required",
       });
     }
 
-    if (!productData.category) {
+    /* =========================
+       CATEGORY
+       Category is a String,
+       not an ObjectId
+    ========================= */
+
+    if (
+      !productData.category ||
+      typeof productData.category !== "string" ||
+      !productData.category.trim()
+    ) {
       return res.status(400).json({
-        message: "Product category is required",
+        message: "Valid category is required",
       });
     }
+
+    productData.category = productData.category
+      .trim()
+      .toLowerCase();
+
+    /* =========================
+       PRICE
+    ========================= */
 
     if (
       productData.price === undefined ||
@@ -332,15 +359,9 @@ export const createAdminProduct = async (
       });
     }
 
-    if (
-      !mongoose.Types.ObjectId.isValid(
-        productData.category
-      )
-    ) {
-      return res.status(400).json({
-        message: "Invalid category ID",
-      });
-    }
+    /* =========================
+       DUPLICATE CHECK
+    ========================= */
 
     const duplicateConditions = [
       {
@@ -371,6 +392,10 @@ export const createAdminProduct = async (
       });
     }
 
+    /* =========================
+       NORMALIZE DATA
+    ========================= */
+
     productData.slug = productData.slug
       .toString()
       .trim()
@@ -378,24 +403,26 @@ export const createAdminProduct = async (
 
     if (productData.serialNumber) {
       productData.serialNumber =
-        productData.serialNumber.toString().trim();
+        productData.serialNumber
+          .toString()
+          .trim();
     }
+
+    /* =========================
+       CREATE PRODUCT
+    ========================= */
 
     const product = await Product.create(
       productData
     );
 
-    const populatedProduct =
-      await Product.findById(product._id)
-        .populate(
-          "category",
-          "name slug"
-        );
+    const createdProduct =
+      await Product.findById(product._id).lean();
 
     return res.status(201).json({
       message:
         "Product created successfully",
-      product: populatedProduct,
+      product: createdProduct,
     });
   } catch (error) {
     console.error(
@@ -462,23 +489,36 @@ export const updateAdminProduct = async (
       });
     }
 
-    if (productData.category) {
+    /* =========================
+       CATEGORY
+    ========================= */
+
+    if (productData.category !== undefined) {
       if (
-        !mongoose.Types.ObjectId.isValid(
-          productData.category
-        )
+        typeof productData.category !== "string" ||
+        !productData.category.trim()
       ) {
         return res.status(400).json({
-          message: "Invalid category ID",
+          message: "Valid category is required",
         });
       }
+
+      productData.category =
+        productData.category
+          .trim()
+          .toLowerCase();
     }
 
+    /* =========================
+       SLUG
+    ========================= */
+
     if (productData.slug) {
-      productData.slug = productData.slug
-        .toString()
-        .trim()
-        .toLowerCase();
+      productData.slug =
+        productData.slug
+          .toString()
+          .trim()
+          .toLowerCase();
 
       const duplicateSlug =
         await Product.findOne({
@@ -496,19 +536,26 @@ export const updateAdminProduct = async (
       }
     }
 
+    /* =========================
+       SERIAL NUMBER
+    ========================= */
+
     if (productData.serialNumber) {
       productData.serialNumber =
-        productData.serialNumber.toString().trim();
+        productData.serialNumber
+          .toString()
+          .trim();
 
-      const duplicateserialNumber =
+      const duplicateSerialNumber =
         await Product.findOne({
-          serialNumber: productData.serialNumber,
+          serialNumber:
+            productData.serialNumber,
           _id: {
             $ne: id,
           },
         });
 
-      if (duplicateserialNumber) {
+      if (duplicateSerialNumber) {
         return res.status(409).json({
           message:
             "This product serialNumber is already in use",
@@ -516,11 +563,19 @@ export const updateAdminProduct = async (
       }
     }
 
+    /* =========================
+       PREVIOUS STOCK
+    ========================= */
+
     const previousStock =
       Number(existingProduct.stock || 0);
 
     const previousColors =
       existingProduct.colors || [];
+
+    /* =========================
+       UPDATE PRODUCT
+    ========================= */
 
     const product =
       await Product.findByIdAndUpdate(
@@ -540,6 +595,10 @@ export const updateAdminProduct = async (
       });
     }
 
+    /* =========================
+       STOCK NOTIFICATIONS
+    ========================= */
+
     const newStock =
       Number(product.stock || 0);
 
@@ -550,7 +609,10 @@ export const updateAdminProduct = async (
       await createNotification({
         type: "out_of_stock",
         title: "Product Out of Stock",
-        message: `${product.name.en || product.name.ar} is now out of stock.`,
+        message: `${
+          product.name.en ||
+          product.name.ar
+        } is now out of stock.`,
         product: product._id,
       });
     } else if (
@@ -560,21 +622,34 @@ export const updateAdminProduct = async (
       await createNotification({
         type: "low_stock",
         title: "Low Product Stock",
-        message: `${product.name.en || product.name.ar} has only ${newStock} items left.`,
+        message: `${
+          product.name.en ||
+          product.name.ar
+        } has only ${newStock} items left.`,
         product: product._id,
       });
     }
+
+    /* =========================
+       COLOR STOCK NOTIFICATIONS
+    ========================= */
 
     const currentColors =
       product.colors || [];
 
     for (const color of currentColors) {
       const previousColor =
-        previousColors.id(color._id);
+        previousColors.find(
+          (item) =>
+            item._id?.toString() ===
+            color._id?.toString()
+        );
 
       const previousColorStock =
         previousColor
-          ? Number(previousColor.stock || 0)
+          ? Number(
+              previousColor.stock || 0
+            )
           : 0;
 
       const currentColorStock =
@@ -586,8 +661,15 @@ export const updateAdminProduct = async (
       ) {
         await createNotification({
           type: "out_of_stock",
-          title: "Product Color Out of Stock",
-          message: `${product.name.en || product.name.ar} - ${color.name.en || color.name.ar} is now out of stock.`,
+          title:
+            "Product Color Out of Stock",
+          message: `${
+            product.name.en ||
+            product.name.ar
+          } - ${
+            color.name.en ||
+            color.name.ar
+          } is now out of stock.`,
           product: product._id,
         });
       } else if (
@@ -596,24 +678,29 @@ export const updateAdminProduct = async (
       ) {
         await createNotification({
           type: "low_stock",
-          title: "Low Product Color Stock",
-          message: `${product.name.en || product.name.ar} - ${color.name.en || color.name.ar} has only ${currentColorStock} items left.`,
+          title:
+            "Low Product Color Stock",
+          message: `${
+            product.name.en ||
+            product.name.ar
+          } - ${
+            color.name.en ||
+            color.name.ar
+          } has only ${currentColorStock} items left.`,
           product: product._id,
         });
       }
     }
 
-    const populatedProduct =
-      await Product.findById(product._id)
-        .populate(
-          "category",
-          "name slug"
-        );
+    const updatedProduct =
+      await Product.findById(
+        product._id
+      ).lean();
 
     return res.status(200).json({
       message:
         "Product updated successfully",
-      product: populatedProduct,
+      product: updatedProduct,
     });
   } catch (error) {
     console.error(
@@ -697,6 +784,10 @@ export const deleteAdminProduct = async (
     });
   }
 };
+
+/* =========================================================
+   ORDERS
+========================================================= */
 
 export const getAdminOrders = async (
   req,
@@ -851,7 +942,8 @@ export const updateAdminOrderStatus =
       try {
         await createNotification({
           type: "order_status",
-          title: "Order Status Updated",
+          title:
+            "Order Status Updated",
           message: `Order #${updatedOrder.orderNumber} is now ${updatedOrder.status}.`,
           order: updatedOrder._id,
           user:
@@ -888,6 +980,10 @@ export const updateAdminOrderStatus =
       await session.endSession();
     }
   };
+
+/* =========================================================
+   USERS
+========================================================= */
 
 export const getAdminUsers = async (
   req,
