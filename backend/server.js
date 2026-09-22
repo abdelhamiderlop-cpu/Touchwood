@@ -1,33 +1,31 @@
+import "dotenv/config";
+
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import hpp from "hpp";
+
 import Router from "./routes/index.js";
 import connectDB from "./config/db.js";
 import logger from "./middleware/logger.js";
 import errorHandler from "./middleware/errorHandler.js";
 
-dotenv.config();
-
 const app = express();
 
 app.disable("x-powered-by");
-
 app.set("trust proxy", 1);
 
-
 const allowedOrigins = [
-  "http://localhost:3000","http://localhost:3001"
-
+  "http://localhost:3000",
+  "http://localhost:3001",
 ];
 
-
-
-
-app.use(cors());
-
+app.use(
+  cors({
+    origin: allowedOrigins,
+  })
+);
 
 app.use(
   helmet({
@@ -49,7 +47,6 @@ app.use(
     limit: "1mb",
   })
 );
-
 
 app.use(hpp());
 
