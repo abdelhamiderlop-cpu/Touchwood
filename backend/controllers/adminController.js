@@ -27,7 +27,7 @@ const PRODUCT_FIELDS = [
   "category",
   "price",
   "oldPrice",
-  "sku",
+  "serialNumber",
   "media",
   "colors",
   "stock",
@@ -351,9 +351,9 @@ export const createAdminProduct = async (
       },
     ];
 
-    if (productData.sku) {
+    if (productData.serialNumber) {
       duplicateConditions.push({
-        sku: productData.sku
+        serialNumber: productData.serialNumber
           .toString()
           .trim(),
       });
@@ -367,7 +367,7 @@ export const createAdminProduct = async (
     if (existingProduct) {
       return res.status(409).json({
         message:
-          "A product with the same slug or SKU already exists",
+          "A product with the same slug or serialNumber already exists",
       });
     }
 
@@ -376,9 +376,9 @@ export const createAdminProduct = async (
       .trim()
       .toLowerCase();
 
-    if (productData.sku) {
-      productData.sku =
-        productData.sku.toString().trim();
+    if (productData.serialNumber) {
+      productData.serialNumber =
+        productData.serialNumber.toString().trim();
     }
 
     const product = await Product.create(
@@ -416,7 +416,7 @@ export const createAdminProduct = async (
     if (error.code === 11000) {
       return res.status(409).json({
         message:
-          "A product with the same slug or SKU already exists",
+          "A product with the same slug or serialNumber already exists",
       });
     }
 
@@ -496,22 +496,22 @@ export const updateAdminProduct = async (
       }
     }
 
-    if (productData.sku) {
-      productData.sku =
-        productData.sku.toString().trim();
+    if (productData.serialNumber) {
+      productData.serialNumber =
+        productData.serialNumber.toString().trim();
 
-      const duplicateSku =
+      const duplicateserialNumber =
         await Product.findOne({
-          sku: productData.sku,
+          serialNumber: productData.serialNumber,
           _id: {
             $ne: id,
           },
         });
 
-      if (duplicateSku) {
+      if (duplicateserialNumber) {
         return res.status(409).json({
           message:
-            "This product SKU is already in use",
+            "This product serialNumber is already in use",
         });
       }
     }
@@ -634,7 +634,7 @@ export const updateAdminProduct = async (
     if (error.code === 11000) {
       return res.status(409).json({
         message:
-          "A product with the same slug or SKU already exists",
+          "A product with the same slug or serialNumber already exists",
       });
     }
 

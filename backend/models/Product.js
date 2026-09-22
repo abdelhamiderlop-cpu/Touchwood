@@ -23,16 +23,25 @@ const mediaSchema = new Schema(
       enum: ["image", "video"],
       required: true,
     },
+
     url: {
       type: String,
       required: true,
       trim: true,
     },
+
+    storageKey: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     thumbnail: {
       type: String,
       trim: true,
       default: "",
     },
+
     alt: {
       type: localizedSchema,
       default: () => ({
@@ -40,10 +49,16 @@ const mediaSchema = new Schema(
         en: "",
       }),
     },
+
     sortOrder: {
       type: Number,
       default: 0,
       min: 0,
+    },
+
+    isPrimary: {
+      type: Boolean,
+      default: false,
     },
   },
   { _id: false }
@@ -55,6 +70,7 @@ const specificationSchema = new Schema(
       type: localizedSchema,
       required: true,
     },
+
     value: {
       type: localizedSchema,
       required: true,
@@ -69,22 +85,26 @@ const colorSchema = new Schema(
       type: localizedSchema,
       required: true,
     },
+
     hex: {
       type: String,
       trim: true,
       default: "",
     },
+
     stock: {
       type: Number,
       required: true,
       default: 0,
       min: 0,
     },
-    sku: {
+
+    serialNumber: {
       type: String,
       trim: true,
       default: "",
     },
+
     media: {
       type: [mediaSchema],
       default: [],
@@ -113,11 +133,11 @@ const productSchema = new Schema(
       lowercase: true,
     },
 
-  category: {
-  type: String,
-  required: true,
-  trim: true,
-},
+    category: {
+      type: String,
+      required: true,
+      trim: true,
+    },
 
     price: {
       type: Number,
@@ -131,7 +151,7 @@ const productSchema = new Schema(
       default: null,
     },
 
-    sku: {
+    serialNumber: {
       type: String,
       trim: true,
       unique: true,

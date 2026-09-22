@@ -1,6 +1,87 @@
 import mongoose from "mongoose";
 import Product from "../models/Product.js";
 import Review from "../models/Review.js";
+import { deleteR2Object } from "../services/r2Service.js";
+
+const normalizeMedia = (media = []) => {
+  if (!Array.isArray(media)) {
+    return [];
+  }
+
+  const normalized = media.map((item, index) => ({
+    type: item.type || "image",
+    url: item.url || "",
+    storageKey: item.storageKey || "",
+    thumbnail: item.thumbnail || item.url || "",
+    alt: {
+      ar: item.alt?.ar || "",
+      en: item.alt?.en || "",
+    },
+    sortOrder:
+      typeof item.sortOrder === "number"
+        ? item.sortOrder
+        : index,
+    isPrimary: Boolean(item.isPrimary),
+  }));
+
+  const firstPrimaryIndex = normalized.findIndex(
+    (item) => item.isPrimary
+  );
+
+  const primaryIndex =
+    firstPrimaryIndex >= 0 ? firstPrimaryIndex : 0;
+
+  return normalized.map((item, index) => ({
+    ...item,
+    isPrimary:
+      normalized.length > 0 &&
+      index === primaryIndex,
+  }));
+};
+
+const normalizeColors = (colors = []) => {
+  if (!Array.isArray(colors)) {
+    return [];
+  }
+
+  return colors.map((color) => ({
+    name: {
+      ar: color.name?.ar || "",
+      en: color.name?.en || "",
+    },
+
+    hex: color.hex || "",
+
+    stock:
+      color.stock === undefined || color.stock === null
+        ? 0
+        : Number(color.stock),
+
+    serialNumber: color.serialNumber || "",
+
+    media: normalizeMedia(color.media || []),
+  }));
+};
+
+const getProductStorageKeys = (product) => {
+  const keys = [];
+
+  for (const media of product.media || []) {
+    if (media.storageKey) {
+      keys.push(media.storageKey);
+    }
+  }
+
+  for (const color of product.colors || []) {
+    for (const media of color.media || []) {
+      if (media.storageKey) {
+        keys.push(media.storageKey);
+      }
+    }
+  }
+
+  return [...new Set(keys)];
+};
 
 export const getProducts = async (req, res) => {
   try {
@@ -37,10 +118,10 @@ export const getProducts = async (req, res) => {
 
     res.status(200).json(products);
   } catch (error) {
-    console.log(error);
+    console.error(error);
 
     res.status(500).json({
-      message: "error",
+      message: "Failed to fetch products",
     });
   }
 };
@@ -54,7 +135,7 @@ export const createProduct = async (req, res) => {
       category,
       price,
       oldPrice,
-      sku,
+      serialNumber,
       media,
       colors,
       stock,
@@ -82,13 +163,21 @@ export const createProduct = async (req, res) => {
       });
     }
 
-    if (!category || typeof category !== "string" || !category.trim()) {
+    if (
+      !category ||
+      typeof category !== "string" ||
+      !category.trim()
+    ) {
       return res.status(400).json({
         message: "Product category is required",
       });
     }
 
-    if (price === undefined || price === null || price === "") {
+    if (
+      price === undefined ||
+      price === null ||
+      price === ""
+    ) {
       return res.status(400).json({
         message: "Product price is required",
       });
@@ -104,14 +193,14 @@ export const createProduct = async (req, res) => {
       });
     }
 
-    if (sku) {
-      const existingSku = await Product.findOne({
-        sku,
+    if (serialNumber) {
+      const existingSerialNumber = await Product.findOne({
+        serialNumber: serialNumber.trim(),
       });
 
-      if (existingSku) {
+      if (existingSerialNumber) {
         return res.status(409).json({
-          message: "Product SKU already exists",
+          message: "Product serial number already exists",
         });
       }
     }
@@ -123,9 +212,9 @@ export const createProduct = async (req, res) => {
       category: category.trim(),
       price,
       oldPrice,
-      sku,
-      media,
-      colors,
+      serialNumber: serialNumber?.trim() || "",
+      media: normalizeMedia(media),
+      colors: normalizeColors(colors),
       stock,
       specifications,
       featured,
@@ -138,16 +227,16 @@ export const createProduct = async (req, res) => {
       product,
     });
   } catch (error) {
-    console.log(error);
+    console.error(error);
 
     if (error.code === 11000) {
       return res.status(409).json({
-        message: "Slug or SKU already exists",
+        message: "Slug or serial number already exists",
       });
     }
 
     res.status(500).json({
-      message: "error",
+      message: "Failed to create product",
     });
   }
 };
@@ -188,10 +277,10 @@ export const getProductById = async (req, res) => {
 
     res.status(200).json(product);
   } catch (error) {
-    console.log(error);
+    console.error(error);
 
     res.status(500).json({
-      message: "error",
+      message: "Failed to fetch product",
     });
   }
 };
@@ -229,10 +318,10 @@ export const getProductBySlug = async (req, res) => {
 
     res.status(200).json(product);
   } catch (error) {
-    console.log(error);
+    console.error(error);
 
     res.status(500).json({
-      message: "error",
+      message: "Failed to fetch product",
     });
   }
 };
@@ -262,7 +351,7 @@ export const updateProduct = async (req, res) => {
       category,
       price,
       oldPrice,
-      sku,
+      serialNumber,
       media,
       colors,
       stock,
@@ -274,7 +363,8 @@ export const updateProduct = async (req, res) => {
 
     if (
       category !== undefined &&
-      (typeof category !== "string" || !category.trim())
+      (typeof category !== "string" ||
+        !category.trim())
     ) {
       return res.status(400).json({
         message: "Product category is invalid",
@@ -296,17 +386,19 @@ export const updateProduct = async (req, res) => {
       }
     }
 
-    if (sku) {
-      const existingSku = await Product.findOne({
-        sku,
-        _id: {
-          $ne: id,
-        },
-      });
+    if (serialNumber) {
+      const existingSerialNumber =
+        await Product.findOne({
+          serialNumber: serialNumber.trim(),
+          _id: {
+            $ne: id,
+          },
+        });
 
-      if (existingSku) {
+      if (existingSerialNumber) {
         return res.status(409).json({
-          message: "Product SKU already exists",
+          message:
+            "Product serial number already exists",
         });
       }
     }
@@ -337,16 +429,18 @@ export const updateProduct = async (req, res) => {
       updateData.oldPrice = oldPrice;
     }
 
-    if (sku !== undefined) {
-      updateData.sku = sku;
+    if (serialNumber !== undefined) {
+      updateData.serialNumber =
+        serialNumber?.trim() || "";
     }
 
     if (media !== undefined) {
-      updateData.media = media;
+      updateData.media = normalizeMedia(media);
     }
 
     if (colors !== undefined) {
-      updateData.colors = colors;
+      updateData.colors =
+        normalizeColors(colors);
     }
 
     if (stock !== undefined) {
@@ -354,7 +448,8 @@ export const updateProduct = async (req, res) => {
     }
 
     if (specifications !== undefined) {
-      updateData.specifications = specifications;
+      updateData.specifications =
+        specifications;
     }
 
     if (featured !== undefined) {
@@ -369,30 +464,32 @@ export const updateProduct = async (req, res) => {
       updateData.active = active;
     }
 
-    const product = await Product.findByIdAndUpdate(
-      id,
-      updateData,
-      {
-        new: true,
-        runValidators: true,
-      }
-    );
+    const product =
+      await Product.findByIdAndUpdate(
+        id,
+        updateData,
+        {
+          new: true,
+          runValidators: true,
+        }
+      );
 
     res.status(200).json({
       message: "Product has been updated",
       product,
     });
   } catch (error) {
-    console.log(error);
+    console.error(error);
 
     if (error.code === 11000) {
       return res.status(409).json({
-        message: "Slug or SKU already exists",
+        message:
+          "Slug or serial number already exists",
       });
     }
 
     res.status(500).json({
-      message: "error",
+      message: "Failed to update product",
     });
   }
 };
@@ -407,7 +504,8 @@ export const deleteProduct = async (req, res) => {
       });
     }
 
-    const deletedProduct = await Product.findByIdAndDelete(id);
+    const deletedProduct =
+      await Product.findByIdAndDelete(id);
 
     if (!deletedProduct) {
       return res.status(404).json({
@@ -419,16 +517,31 @@ export const deleteProduct = async (req, res) => {
       product: id,
     });
 
+    const storageKeys =
+      getProductStorageKeys(deletedProduct);
+
+    for (const key of storageKeys) {
+      try {
+        await deleteR2Object(key);
+      } catch (storageError) {
+        console.error(
+          `Failed to delete R2 object: ${key}`,
+          storageError
+        );
+      }
+    }
+
     res.status(200).json({
       message: `You have deleted ${
-        deletedProduct.name.ar || deletedProduct.name.en
+        deletedProduct.name.ar ||
+        deletedProduct.name.en
       }`,
     });
   } catch (error) {
-    console.log(error);
+    console.error(error);
 
     res.status(500).json({
-      message: "error",
+      message: "Failed to delete product",
     });
   }
 };
