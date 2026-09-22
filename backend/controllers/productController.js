@@ -83,6 +83,10 @@ const getProductStorageKeys = (product) => {
   return [...new Set(keys)];
 };
 
+/* =========================================================
+   GET ALL PRODUCTS
+========================================================= */
+
 export const getProducts = async (req, res) => {
   try {
     const {
@@ -95,7 +99,7 @@ export const getProducts = async (req, res) => {
     const filter = {};
 
     if (category) {
-      filter.category = category;
+      filter.category = category.trim();
     }
 
     if (featured !== undefined) {
@@ -116,18 +120,24 @@ export const getProducts = async (req, res) => {
       createdAt: -1,
     });
 
-    res.status(200).json(products);
+    return res.status(200).json(products);
   } catch (error) {
-    console.error(error);
+    console.error("GET PRODUCTS ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to fetch products",
     });
   }
 };
 
+/* =========================================================
+   CREATE PRODUCT
+========================================================= */
+
 export const createProduct = async (req, res) => {
   try {
+    console.log("CREATE PRODUCT BODY:", req.body);
+
     const {
       name,
       description,
@@ -143,48 +153,78 @@ export const createProduct = async (req, res) => {
       featured,
       badge,
       active,
-    } = req.body;
+    } = req.body || {};
 
-    if (!name?.ar && !name?.en) {
+    /* ---------- NAME ---------- */
+
+    if (
+      !name ||
+      typeof name !== "object" ||
+      (!name.ar?.trim?.() && !name.en?.trim?.())
+    ) {
       return res.status(400).json({
         message: "Product name is required",
       });
     }
 
-    if (!description?.ar && !description?.en) {
+    /* ---------- DESCRIPTION ---------- */
+
+    if (
+      !description ||
+      typeof description !== "object" ||
+      (!description.ar?.trim?.() &&
+        !description.en?.trim?.())
+    ) {
       return res.status(400).json({
         message: "Product description is required",
       });
     }
 
-    if (!slug) {
+    /* ---------- SLUG ---------- */
+
+    if (
+      typeof slug !== "string" ||
+      !slug.trim()
+    ) {
       return res.status(400).json({
         message: "Product slug is required",
       });
     }
 
+    const normalizedSlug = slug.trim().toLowerCase();
+
+    /* ---------- CATEGORY ---------- */
+
     if (
-      !category ||
       typeof category !== "string" ||
       !category.trim()
     ) {
       return res.status(400).json({
-        message: "Product category is required",
+        message: "Valid category is required",
       });
     }
+
+    const normalizedCategory =
+      category.trim().toLowerCase();
+
+    /* ---------- PRICE ---------- */
 
     if (
       price === undefined ||
       price === null ||
-      price === ""
+      price === "" ||
+      !Number.isFinite(Number(price)) ||
+      Number(price) < 0
     ) {
       return res.status(400).json({
-        message: "Product price is required",
+        message: "Price must be a valid positive number",
       });
     }
 
+    /* ---------- SLUG DUPLICATION ---------- */
+
     const existingSlug = await Product.findOne({
-      slug: slug.toLowerCase(),
+      slug: normalizedSlug,
     });
 
     if (existingSlug) {
@@ -193,53 +233,149 @@ export const createProduct = async (req, res) => {
       });
     }
 
-    if (serialNumber) {
-      const existingSerialNumber = await Product.findOne({
-        serialNumber: serialNumber.trim(),
-      });
+    /* ---------- SERIAL NUMBER ---------- */
+
+    if (
+      serialNumber !== undefined &&
+      serialNumber !== null &&
+      String(serialNumber).trim()
+    ) {
+      const normalizedSerialNumber =
+        String(serialNumber).trim();
+
+      const existingSerialNumber =
+        await Product.findOne({
+          serialNumber: normalizedSerialNumber,
+        });
 
       if (existingSerialNumber) {
         return res.status(409).json({
-          message: "Product serial number already exists",
+          message:
+            "Product serial number already exists",
         });
       }
     }
 
+    /* ---------- CREATE ---------- */
+
     const product = await Product.create({
-      name,
-      description,
-      slug: slug.toLowerCase(),
-      category: category.trim(),
-      price,
-      oldPrice,
-      serialNumber: serialNumber?.trim() || "",
+      name: {
+        ar: name.ar?.trim?.() || "",
+        en: name.en?.trim?.() || "",
+      },
+
+      description: {
+        ar: description.ar?.trim?.() || "",
+        en: description.en?.trim?.() || "",
+      },
+
+      slug: normalizedSlug,
+
+      category: normalizedCategory,
+
+      price: Number(price),
+
+      oldPrice:
+        oldPrice === undefined ||
+        oldPrice === null ||
+        oldPrice === ""
+          ? null
+          : Number(oldPrice),
+
+      serialNumber:
+        serialNumber !== undefined &&
+        serialNumber !== null
+          ? String(serialNumber).trim()
+          : "",
+
       media: normalizeMedia(media),
+
       colors: normalizeColors(colors),
-      stock,
-      specifications,
-      featured,
-      badge,
-      active,
+
+      stock:
+        stock === undefined ||
+        stock === null ||
+        stock === ""
+          ? 0
+          : Number(stock),
+
+      specifications:
+        Array.isArray(specifications)
+          ? specifications
+          : [],
+
+      featured:
+        featured === undefined
+          ? false
+          : Boolean(featured),
+
+      badge: badge || {
+        ar: "",
+        en: "",
+      },
+
+      active:
+        active === undefined
+          ? true
+          : Boolean(active),
     });
 
-    res.status(201).json({
+    console.log(
+      "PRODUCT CREATED:",
+      product._id.toString()
+    );
+
+    return res.status(201).json({
       message: "You have added this product",
       product,
     });
   } catch (error) {
-    console.error(error);
+    console.error("CREATE PRODUCT ERROR:", error);
 
-    if (error.code === 11000) {
+    if (error?.code === 11000) {
+      const duplicatedField =
+        Object.keys(error.keyPattern || {})[0];
+
+      if (duplicatedField === "slug") {
+        return res.status(409).json({
+          message: "Product slug already exists",
+        });
+      }
+
+      if (duplicatedField === "serialNumber") {
+        return res.status(409).json({
+          message:
+            "Product serial number already exists",
+        });
+      }
+
       return res.status(409).json({
-        message: "Slug or serial number already exists",
+        message: "Duplicate product data",
       });
     }
 
-    res.status(500).json({
+    if (error instanceof mongoose.Error.ValidationError) {
+      return res.status(400).json({
+        message: "Product validation failed",
+        errors: Object.values(error.errors).map(
+          (item) => item.message
+        ),
+      });
+    }
+
+    return res.status(500).json({
       message: "Failed to create product",
+      error:
+        process.env.NODE_ENV === "development"
+          ? error.message
+          : undefined,
     });
   }
 };
+
+/* =========================================================
+   GET PRODUCT BY ID
+========================================================= */
 
 export const getProductById = async (req, res) => {
   try {
@@ -275,15 +411,19 @@ export const getProductById = async (req, res) => {
       reviews,
     };
 
-    res.status(200).json(product);
+    return res.status(200).json(product);
   } catch (error) {
-    console.error(error);
+    console.error("GET PRODUCT ERROR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to fetch product",
     });
   }
 };
+
+/* =========================================================
+   GET PRODUCT BY SLUG
+========================================================= */
 
 export const getProductBySlug = async (req, res) => {
   try {
@@ -316,15 +456,22 @@ export const getProductBySlug = async (req, res) => {
       reviews,
     };
 
-    res.status(200).json(product);
+    return res.status(200).json(product);
   } catch (error) {
-    console.error(error);
+    console.error(
+      "GET PRODUCT BY SLUG ERROR:",
+      error
+    );
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to fetch product",
     });
   }
 };
+
+/* =========================================================
+   UPDATE PRODUCT
+========================================================= */
 
 export const updateProduct = async (req, res) => {
   try {
@@ -336,7 +483,8 @@ export const updateProduct = async (req, res) => {
       });
     }
 
-    const existingProduct = await Product.findById(id);
+    const existingProduct =
+      await Product.findById(id);
 
     if (!existingProduct) {
       return res.status(404).json({
@@ -359,25 +507,44 @@ export const updateProduct = async (req, res) => {
       featured,
       badge,
       active,
-    } = req.body;
+    } = req.body || {};
+
+    /* ---------- CATEGORY ---------- */
 
     if (
       category !== undefined &&
-      (typeof category !== "string" ||
-        !category.trim())
+      (
+        typeof category !== "string" ||
+        !category.trim()
+      )
     ) {
       return res.status(400).json({
         message: "Product category is invalid",
       });
     }
 
-    if (slug) {
-      const existingSlug = await Product.findOne({
-        slug: slug.toLowerCase(),
-        _id: {
-          $ne: id,
-        },
-      });
+    /* ---------- SLUG ---------- */
+
+    if (slug !== undefined) {
+      if (
+        typeof slug !== "string" ||
+        !slug.trim()
+      ) {
+        return res.status(400).json({
+          message: "Product slug is invalid",
+        });
+      }
+
+      const normalizedSlug =
+        slug.trim().toLowerCase();
+
+      const existingSlug =
+        await Product.findOne({
+          slug: normalizedSlug,
+          _id: {
+            $ne: id,
+          },
+        });
 
       if (existingSlug) {
         return res.status(409).json({
@@ -386,10 +553,19 @@ export const updateProduct = async (req, res) => {
       }
     }
 
-    if (serialNumber) {
+    /* ---------- SERIAL NUMBER ---------- */
+
+    if (
+      serialNumber !== undefined &&
+      serialNumber !== null &&
+      String(serialNumber).trim()
+    ) {
+      const normalizedSerialNumber =
+        String(serialNumber).trim();
+
       const existingSerialNumber =
         await Product.findOne({
-          serialNumber: serialNumber.trim(),
+          serialNumber: normalizedSerialNumber,
           _id: {
             $ne: id,
           },
@@ -403,6 +579,8 @@ export const updateProduct = async (req, res) => {
       }
     }
 
+    /* ---------- UPDATE DATA ---------- */
+
     const updateData = {};
 
     if (name !== undefined) {
@@ -414,28 +592,37 @@ export const updateProduct = async (req, res) => {
     }
 
     if (slug !== undefined) {
-      updateData.slug = slug.toLowerCase();
+      updateData.slug =
+        slug.trim().toLowerCase();
     }
 
     if (category !== undefined) {
-      updateData.category = category.trim();
+      updateData.category =
+        category.trim().toLowerCase();
     }
 
     if (price !== undefined) {
-      updateData.price = price;
+      updateData.price = Number(price);
     }
 
     if (oldPrice !== undefined) {
-      updateData.oldPrice = oldPrice;
+      updateData.oldPrice =
+        oldPrice === null ||
+        oldPrice === ""
+          ? null
+          : Number(oldPrice);
     }
 
     if (serialNumber !== undefined) {
       updateData.serialNumber =
-        serialNumber?.trim() || "";
+        serialNumber === null
+          ? ""
+          : String(serialNumber).trim();
     }
 
     if (media !== undefined) {
-      updateData.media = normalizeMedia(media);
+      updateData.media =
+        normalizeMedia(media);
     }
 
     if (colors !== undefined) {
@@ -444,16 +631,18 @@ export const updateProduct = async (req, res) => {
     }
 
     if (stock !== undefined) {
-      updateData.stock = stock;
+      updateData.stock = Number(stock);
     }
 
     if (specifications !== undefined) {
       updateData.specifications =
-        specifications;
+        Array.isArray(specifications)
+          ? specifications
+          : [];
     }
 
     if (featured !== undefined) {
-      updateData.featured = featured;
+      updateData.featured = Boolean(featured);
     }
 
     if (badge !== undefined) {
@@ -461,7 +650,7 @@ export const updateProduct = async (req, res) => {
     }
 
     if (active !== undefined) {
-      updateData.active = active;
+      updateData.active = Boolean(active);
     }
 
     const product =
@@ -474,25 +663,50 @@ export const updateProduct = async (req, res) => {
         }
       );
 
-    res.status(200).json({
+    return res.status(200).json({
       message: "Product has been updated",
       product,
     });
   } catch (error) {
-    console.error(error);
+    console.error(
+      "UPDATE PRODUCT ERROR:",
+      error
+    );
 
-    if (error.code === 11000) {
+    if (error?.code === 11000) {
+      const duplicatedField =
+        Object.keys(error.keyPattern || {})[0];
+
+      if (duplicatedField === "slug") {
+        return res.status(409).json({
+          message:
+            "Product slug already exists",
+        });
+      }
+
+      if (
+        duplicatedField === "serialNumber"
+      ) {
+        return res.status(409).json({
+          message:
+            "Product serial number already exists",
+        });
+      }
+
       return res.status(409).json({
-        message:
-          "Slug or serial number already exists",
+        message: "Duplicate product data",
       });
     }
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to update product",
     });
   }
 };
+
+/* =========================================================
+   DELETE PRODUCT
+========================================================= */
 
 export const deleteProduct = async (req, res) => {
   try {
@@ -531,16 +745,19 @@ export const deleteProduct = async (req, res) => {
       }
     }
 
-    res.status(200).json({
+    return res.status(200).json({
       message: `You have deleted ${
         deletedProduct.name.ar ||
         deletedProduct.name.en
       }`,
     });
   } catch (error) {
-    console.error(error);
+    console.error(
+      "DELETE PRODUCT ERROR:",
+      error
+    );
 
-    res.status(500).json({
+    return res.status(500).json({
       message: "Failed to delete product",
     });
   }
