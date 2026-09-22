@@ -1,22 +1,12 @@
+import { notFound } from "next/navigation";
 
-import type { Metadata } from "next";
-import { Alexandria } from "next/font/google";
+const locales = ["ar", "en"];
 
-import "../globals.css";
-
-import SiteLayout from "@/components/layout/SiteLayout";
-
-const alexandria = Alexandria({
-  variable: "--font-alexandria",
-  subsets: ["arabic", "latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  display: "swap",
-});
-
-export const metadata: Metadata = {
-  title: "Touch Wood",
-  description: "Touch Wood Furniture Store",
-};
+export function generateStaticParams() {
+  return locales.map((locale) => ({
+    locale,
+  }));
+}
 
 export default async function LocaleLayout({
   children,
@@ -27,14 +17,13 @@ export default async function LocaleLayout({
 }>) {
   const { locale } = await params;
 
+  if (!locales.includes(locale)) {
+    notFound();
+  }
+
   return (
-    <div
-      className={alexandria.className}
-      lang={locale}
-      dir={locale === "ar" ? "rtl" : "ltr"}
-    >
-      <SiteLayout>{children}</SiteLayout>
+    <div lang={locale} dir={locale === "ar" ? "rtl" : "ltr"}>
+      {children}
     </div>
   );
 }
-

@@ -1,9 +1,10 @@
-
 "use client";
 
 import Image from "next/image";
-import { Menu } from "lucide-react";
+import { Bell, Globe, Menu } from "lucide-react";
 import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import styles from "./AdminTopbar.module.css";
 
 type AdminTopbarProps = {
   onMenuClick: () => void;
@@ -20,6 +21,9 @@ export default function AdminTopbar({
 }: AdminTopbarProps) {
   const [user, setUser] = useState<AdminUser | null>(null);
 
+  const router = useRouter();
+  const pathname = usePathname();
+
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
 
@@ -34,45 +38,106 @@ export default function AdminTopbar({
     }
   }, []);
 
+  const adminName = user?.name || "Admin";
+  const adminInitial = adminName.charAt(0).toUpperCase();
+
+  const pathSegments = pathname.split("/").filter(Boolean);
+
+  const currentLocale =
+    pathSegments[0] === "en" ? "en" : "ar";
+
+  const otherLocale =
+    currentLocale === "ar" ? "en" : "ar";
+
+  const handleLanguageChange = () => {
+    const newPath = [
+      otherLocale,
+      ...pathSegments.slice(1),
+    ].join("/");
+
+    router.push(`/${newPath}`);
+  };
+
   return (
-    <header className="admin-topbar">
-      <div className="admin-topbar-left">
+    <header className={styles.topbar}>
+      <div className={styles.leftSection}>
         <button
           type="button"
-          className="admin-menu-button"
+          className={styles.menuButton}
           onClick={onMenuClick}
           aria-label="Open menu"
         >
           <Menu size={24} />
         </button>
 
-        <div className="admin-topbar-logo">
+        <div className={styles.logoWrapper}>
           <Image
             src="/logo/logo.jpeg"
-            alt="Touchwood"
+            alt="Touch Wood"
             width={115}
             height={44}
             priority
+            className={styles.logo}
           />
+
+          <span className={styles.brandName}>
+            {currentLocale === "ar"
+              ? "تاتش وود للأثاث المكتبي"
+              : "Touch Wood Furniture"}
+          </span>
         </div>
       </div>
 
-      <div className="admin-profile">
-        <div className="admin-profile-info">
-          <span className="admin-profile-name">
-            {user?.name || "Admin"}
-          </span>
+      <div className={styles.rightSection}>
+        <button
+          type="button"
+          className={styles.iconButton}
+          onClick={handleLanguageChange}
+          aria-label="Change language"
+        >
+          <Globe size={21} />
 
-          <span className="admin-profile-role">
-            {user?.role === "admin" ? "Administrator" : "Admin"}
+          <span>
+            {currentLocale === "ar" ? "EN" : "AR"}
           </span>
-        </div>
+        </button>
 
-        <div className="admin-profile-avatar">
-          {user?.name?.charAt(0).toUpperCase() || "A"}
+        <button
+          type="button"
+          className={styles.iconButton}
+          aria-label="Notifications"
+        >
+          <Bell size={21} />
+
+          <span className={styles.notificationBadge}>
+            0
+          </span>
+        </button>
+
+        <div className={styles.separator} />
+
+        <div className={styles.profile}>
+          <div className={styles.profileAvatar}>
+            {adminInitial}
+          </div>
+
+          <div className={styles.profileInfo}>
+            <span className={styles.profileName}>
+              {adminName}
+            </span>
+
+            <span className={styles.profileRole}>
+              {currentLocale === "ar"
+                ? user?.role === "admin"
+                  ? "مدير النظام"
+                  : "مدير"
+                : user?.role === "admin"
+                  ? "Administrator"
+                  : "Admin"}
+            </span>
+          </div>
         </div>
       </div>
     </header>
   );
 }
-

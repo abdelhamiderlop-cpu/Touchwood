@@ -113,11 +113,11 @@ const productSchema = new Schema(
       lowercase: true,
     },
 
-    category: {
-      type: Schema.Types.ObjectId,
-      ref: "Category",
-      required: true,
-    },
+  category: {
+  type: String,
+  required: true,
+  trim: true,
+},
 
     price: {
       type: Number,

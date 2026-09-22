@@ -1,5 +1,5 @@
-
 "use client";
+
 import { usePathname } from "next/navigation";
 
 import Navbar from "@/components/layout/Navbar";
@@ -22,35 +22,25 @@ export default function SiteLayout({
 
   return (
     <>
-   
       <Navbar />
-<MobileTopNavbar />
+
+      <MobileTopNavbar />
+
       {isAuthPage ? (
-        <>
-          {/* Login / Register */}
-          {children}
-        </>
+        children
       ) : (
         <>
-          {/* Mobile Navigation */}
-          
-
           <MobileSearchNavbar />
 
-          {/* Hero */}
           <Hero />
 
-          {/* Page Content */}
           {children}
 
-          {/* Mobile Bottom Navigation */}
           <MobileBottomNavbar />
         </>
       )}
 
-      {/* Footer يظهر في جميع الصفحات */}
       <Footer />
     </>
   );
 }
-

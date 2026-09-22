@@ -14,12 +14,6 @@ export const getProducts = async (req, res) => {
     const filter = {};
 
     if (category) {
-      if (!mongoose.Types.ObjectId.isValid(category)) {
-        return res.status(400).json({
-          message: "Invalid category",
-        });
-      }
-
       filter.category = category;
     }
 
@@ -37,11 +31,9 @@ export const getProducts = async (req, res) => {
       };
     }
 
-    const products = await Product.find(filter)
-      .populate("category")
-      .sort({
-        createdAt: -1,
-      });
+    const products = await Product.find(filter).sort({
+      createdAt: -1,
+    });
 
     res.status(200).json(products);
   } catch (error) {
@@ -90,13 +82,13 @@ export const createProduct = async (req, res) => {
       });
     }
 
-    if (!category || !mongoose.Types.ObjectId.isValid(category)) {
+    if (!category || typeof category !== "string" || !category.trim()) {
       return res.status(400).json({
-        message: "Valid category is required",
+        message: "Product category is required",
       });
     }
 
-    if (price === undefined || price === null) {
+    if (price === undefined || price === null || price === "") {
       return res.status(400).json({
         message: "Product price is required",
       });
@@ -128,7 +120,7 @@ export const createProduct = async (req, res) => {
       name,
       description,
       slug: slug.toLowerCase(),
-      category,
+      category: category.trim(),
       price,
       oldPrice,
       sku,
@@ -141,13 +133,9 @@ export const createProduct = async (req, res) => {
       active,
     });
 
-    const populatedProduct = await Product.findById(product._id).populate(
-      "category"
-    );
-
     res.status(201).json({
       message: "You have added this product",
-      product: populatedProduct,
+      product,
     });
   } catch (error) {
     console.log(error);
@@ -174,7 +162,7 @@ export const getProductById = async (req, res) => {
       });
     }
 
-    const productById = await Product.findById(id).populate("category");
+    const productById = await Product.findById(id);
 
     if (!productById) {
       return res.status(404).json({
@@ -215,7 +203,7 @@ export const getProductBySlug = async (req, res) => {
     const productBySlug = await Product.findOne({
       slug: slug.toLowerCase(),
       active: true,
-    }).populate("category");
+    });
 
     if (!productBySlug) {
       return res.status(404).json({
@@ -284,9 +272,12 @@ export const updateProduct = async (req, res) => {
       active,
     } = req.body;
 
-    if (category && !mongoose.Types.ObjectId.isValid(category)) {
+    if (
+      category !== undefined &&
+      (typeof category !== "string" || !category.trim())
+    ) {
       return res.status(400).json({
-        message: "Invalid category",
+        message: "Product category is invalid",
       });
     }
 
@@ -322,30 +313,61 @@ export const updateProduct = async (req, res) => {
 
     const updateData = {};
 
-    if (name !== undefined) updateData.name = name;
+    if (name !== undefined) {
+      updateData.name = name;
+    }
+
     if (description !== undefined) {
       updateData.description = description;
     }
+
     if (slug !== undefined) {
       updateData.slug = slug.toLowerCase();
     }
+
     if (category !== undefined) {
-      updateData.category = category;
+      updateData.category = category.trim();
     }
-    if (price !== undefined) updateData.price = price;
-    if (oldPrice !== undefined) updateData.oldPrice = oldPrice;
-    if (sku !== undefined) updateData.sku = sku;
-    if (media !== undefined) updateData.media = media;
-    if (colors !== undefined) updateData.colors = colors;
-    if (stock !== undefined) updateData.stock = stock;
+
+    if (price !== undefined) {
+      updateData.price = price;
+    }
+
+    if (oldPrice !== undefined) {
+      updateData.oldPrice = oldPrice;
+    }
+
+    if (sku !== undefined) {
+      updateData.sku = sku;
+    }
+
+    if (media !== undefined) {
+      updateData.media = media;
+    }
+
+    if (colors !== undefined) {
+      updateData.colors = colors;
+    }
+
+    if (stock !== undefined) {
+      updateData.stock = stock;
+    }
+
     if (specifications !== undefined) {
       updateData.specifications = specifications;
     }
+
     if (featured !== undefined) {
       updateData.featured = featured;
     }
-    if (badge !== undefined) updateData.badge = badge;
-    if (active !== undefined) updateData.active = active;
+
+    if (badge !== undefined) {
+      updateData.badge = badge;
+    }
+
+    if (active !== undefined) {
+      updateData.active = active;
+    }
 
     const product = await Product.findByIdAndUpdate(
       id,
@@ -354,7 +376,7 @@ export const updateProduct = async (req, res) => {
         new: true,
         runValidators: true,
       }
-    ).populate("category");
+    );
 
     res.status(200).json({
       message: "Product has been updated",
@@ -398,7 +420,9 @@ export const deleteProduct = async (req, res) => {
     });
 
     res.status(200).json({
-      message: `You have deleted ${deletedProduct.name.ar || deletedProduct.name.en}`,
+      message: `You have deleted ${
+        deletedProduct.name.ar || deletedProduct.name.en
+      }`,
     });
   } catch (error) {
     console.log(error);
